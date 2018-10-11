@@ -9,4 +9,4 @@ First run `download_resources.py` to download training data. It may take several
 Then you can run `week6/image_captioning.py` to train and then use the model.
 At the bottom you can add your own calls to `apply_model_to_image_raw_bytes()` to generate images with captions.
 Below is an example:
-![first tab](https://github.com/akirov/Coursera/intro-to-dl/week6/images/raw/master/cap_example.png)
+![first tab](https://github.com/akirov/Coursera/raw/master/intro-to-dl/week6/images/cap_example.png)
