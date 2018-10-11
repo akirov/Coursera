@@ -1,0 +1,6 @@
+readonly/
+__pycache__/
+*.zip
+*.pickle
+checkpoint
+weights*.*
