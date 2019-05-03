@@ -1,5 +1,6 @@
 readonly/
 __pycache__/
+data/
 *.zip
 *.pickle
 checkpoint
