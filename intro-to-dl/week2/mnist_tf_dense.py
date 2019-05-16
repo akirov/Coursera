@@ -14,7 +14,7 @@ mnist = input_data.read_data_sets("../data/", one_hot=True)
 
 # Optimisation variables
 learning_rate = 0.0004  # 0.0005 for Adam, 0.5 for GD. Or use lr = 0.0001 + tf.train.exponential_decay(0.003, step, 2000, 1/math.e)
-epochs = 60  # 50 with dropout, 20 without
+epochs = 30  # 50 with dropout, 20 without
 batch_size = 128
 dropout = 0.75
 
@@ -113,40 +113,65 @@ accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
 
 import cv2
 import numpy as np
-#from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt
 
 
 # Start the training session
 with tf.Session() as sess:
-    # Initialise the variables
-    sess.run(init_op)
-    total_batch = int(len(mnist.train.labels) / batch_size)
-    for epoch in range(epochs):  # Or require some accuracy to stop
-        avg_cost = 0
-        for i in range(total_batch):
-            batch_x, batch_y = mnist.train.next_batch(batch_size=batch_size)
-            _, ce = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y, keep_prob: dropout})
-            avg_cost += ce
-        avg_cost /= total_batch
-        print("Epoch:", (epoch + 1), "loss =", "{:.4f}".format(avg_cost))
+    imported_graph = None
+    if os.path.isfile(os.path.abspath("mtf_model.meta")):
+        imported_graph = tf.train.import_meta_graph(os.path.abspath('mtf_model.meta'))
 
-    print("Training finished! Test accuracy = ", sess.run(accuracy, feed_dict={x: mnist.test.images, y: mnist.test.labels, keep_prob: 1.0}))
+    if imported_graph is not None:
+        print("Loading saved model..")
+        imported_graph.restore(sess, os.path.abspath("mtf_model"))
+    else:
+        print("Initializing variables...")
+        sess.run(init_op)  # Initialise the variables
 
-#    img = cv2.imread("snapshot.png", cv2.IMREAD_GRAYSCALE)
-#    plt.imshow(newimg, cmap="Greys")
-#    plt.show()
-#    newimg = (img.astype(float) / 255.).reshape(784)
-#    predictions = sess.run(y_, feed_dict={x: [newimg]})
-#    print(predictions, np.argmax(predictions))
+    test_acc = sess.run(accuracy, feed_dict={x: mnist.test.images, y: mnist.test.labels, keep_prob: 1.0})
+    print("Before training! Test accuracy = ", test_acc)
+
+    if test_acc < 0.98 :  # Only train if not trained already
+        total_batch = int(len(mnist.train.labels) / batch_size)
+        losses = []
+        for epoch in range(epochs):  # Or require some accuracy to stop
+            avg_cost = 0
+            for i in range(total_batch):
+                batch_x, batch_y = mnist.train.next_batch(batch_size=batch_size)
+                _, ce = sess.run([optimiser, cross_entropy], feed_dict={x: batch_x, y: batch_y, keep_prob: dropout})
+                avg_cost += ce
+            avg_cost /= total_batch
+            print("Epoch:", (epoch + 1), "loss =", "{:.4f}".format(avg_cost))
+            losses.append(avg_cost)
+            if avg_cost < 0.001: break
+
+        test_acc = sess.run(accuracy, feed_dict={x: mnist.test.images, y: mnist.test.labels, keep_prob: 1.0})
+        print("Training finished! Test accuracy = ", test_acc)
+
+        if len(losses) > 1:
+            plt.plot(losses)
+            plt.xlabel("Epochs")
+            plt.ylabel("Training loss")
+            plt.show()
+
+        # Save the model
+        saver.save(sess, os.path.abspath("mtf_model"))
+
+#    if os.path.isfile(os.path.abspath("digit.png")):
+#        img = cv2.imread("digit.png", cv2.IMREAD_GRAYSCALE)
+#        plt.imshow(img, cmap="Greys")
+#        plt.show()
+#        newimg = (img.astype(float) / 255.).reshape(784)
+#        predictions = sess.run(y_, feed_dict={x: [newimg], keep_prob: 1.0})
+#        print(predictions, np.argmax(predictions))
 #
 #    for i in range(5,15) :
-#        plt.imshow(mnist.test.images[i].reshape(28,28), cmap="Greys")
+#        mimg = mnist.test.images[i]
+#        plt.imshow(mimg.reshape(28,28), cmap="Greys")
 #        plt.show()
-#        predictions = sess.run(y_, feed_dict={x: [mnist.test.images[i], keep_prob: 1.0]})
-#        print(predictions, np.argmax(predictions), [mnist.test.labels[i]])
-
-    # Save the model
-    saver.save(sess, os.path.abspath("mtf_model"))
+#        predictions = sess.run(y_, feed_dict={x: [mimg], keep_prob: 1.0})
+#        print(predictions, np.argmax(predictions), mimg)
 
 
 drawing = False # true if mouse is pressed

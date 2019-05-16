@@ -114,7 +114,8 @@ dropout = 0.75
 # is nevertheless zero and the gradient descent optimizer stays stuck there. Adam is better.
 # Training step, the learning rate is a placeholder
 # the learning rate is: # 0.0001 + 0.003 * (1/e)^(step/2000)), i.e. exponential decay from 0.003->0.0001
-lr = 0.0001 +  tf.train.exponential_decay(0.005, step, 1, 1/math.e)
+stepmod = tf.placeholder(tf.float32, name='stepmod')  # will be 0 or 1
+lr = 0.0001 +  stepmod * tf.train.exponential_decay(0.005, step, 1, 1/math.e)
 train_step = tf.train.AdamOptimizer(lr).minimize(cross_entropy)
 
 
@@ -126,41 +127,69 @@ init_op = tf.global_variables_initializer()
 saver = tf.train.Saver(max_to_keep=5)
 
 
+from matplotlib import pyplot as plt
+
+
 from timeit import default_timer as timer
 tstart = timer()
 
 # Start the training session
 with tf.Session() as sess:
-    # Initialise the variables
-    sess.run(init_op)
-    total_batch = int(len(mnist.train.labels) / batch_size)
-    for epoch in range(epochs):  # Or require some accuracy to stop?
-        avg_cost = 0
-        for i in range(total_batch):
-            batch_x, batch_y = mnist.train.next_batch(batch_size=batch_size)
-            _, ce = sess.run([train_step, cross_entropy], feed_dict={X: batch_x, Y_: batch_y,
-                                                                     step: epoch,
-                                                                     keep_prob: dropout})
-            avg_cost += ce
-        avg_cost /= total_batch
-        l = sess.run([lr], feed_dict={step: epoch})
-        print("Training epoch:", (epoch + 1), ", loss =", "{:.5f}".format(avg_cost),
-              ", lr =", str(l[0]))
+    imported_graph = None
+    if os.path.isfile(os.path.abspath("cnn_model.meta")):
+        imported_graph = tf.train.import_meta_graph(os.path.abspath('cnn_model.meta'))
 
-    print("Training finished! Test accuracy = ", sess.run(accuracy, feed_dict={X: mnist.test.images,
-                                                                               Y_: mnist.test.labels,
-                                                                               keep_prob: 1.0}))
+    if imported_graph is not None:
+        print("Loading saved model..")
+        imported_graph.restore(sess, os.path.abspath("cnn_model"))
+        smod = 0.0
+    else:
+        print("Initializing variables...")
+        sess.run(init_op)  # Initialise the variables
+        smod = 1.0
 
-    # Save the model
-    saver.save(sess, os.path.abspath("cnn_model"))
+    test_acc = sess.run(accuracy, feed_dict={X: mnist.test.images, Y_: mnist.test.labels, keep_prob: 1.0})
+    print("Before training! Test accuracy = ", test_acc)
 
-tend = timer()
-print("Training time :", (tend-tstart))
+    if test_acc < 0.99 :  # Only train if not trained already
+        total_batch = int(len(mnist.train.labels) / batch_size)
+        losses = []
+        for epoch in range(epochs):  # Or require some accuracy to stop?
+            avg_cost = 0
+            for i in range(total_batch):
+                batch_x, batch_y = mnist.train.next_batch(batch_size=batch_size)
+                _, ce = sess.run([train_step, cross_entropy], feed_dict={X: batch_x, Y_: batch_y,
+                                                                         stepmod : smod,
+                                                                         step: epoch,
+                                                                         keep_prob: dropout})
+                avg_cost += ce
+            avg_cost /= total_batch
+            l = sess.run([lr], feed_dict={stepmod : smod, step: epoch})
+            print("Training epoch:", (epoch + 1), ", loss =", "{:.5f}".format(avg_cost),
+                  ", lr =", str(l[0]))
+            losses.append(avg_cost)
+            # Save the model every 10 epochs
+            if epoch % 10 == 0 : saver.save(sess, os.path.abspath("cnn_model"))
+            if avg_cost < 0.00001: break
+
+        test_acc = sess.run(accuracy, feed_dict={X: mnist.test.images, Y_: mnist.test.labels, keep_prob: 1.0})
+        print("Training finished! Test accuracy = ", test_acc)
+
+        tend = timer()
+        print("Training time :", (tend - tstart))
+
+        if len(losses) > 1:
+            plt.plot(losses)
+            plt.xlabel("Epochs")
+            plt.ylabel("Training loss")
+            plt.show()
+
+        # Save the final model
+        saver.save(sess, os.path.abspath("cnn_model"))
 
 
 import cv2
 import numpy as np
-#from matplotlib import pyplot as plt
 
 
 drawing = False # true if mouse is pressed
