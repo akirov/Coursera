@@ -1,5 +1,5 @@
-Handwritten digit recognition
-=============================
+Handwritten digit recognition with TensorFlow and Keras
+=======================================================
 
 Several Python implementations:
 
