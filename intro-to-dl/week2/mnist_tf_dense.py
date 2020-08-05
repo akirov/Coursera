@@ -120,11 +120,11 @@ from matplotlib import pyplot as plt
 with tf.Session() as sess:
     imported_graph = None
     if os.path.isfile(os.path.abspath("mtf_model.meta")):
-        imported_graph = tf.train.import_meta_graph(os.path.abspath('mtf_model.meta'))
+        imported_graph = tf.train.import_meta_graph(os.path.abspath('mtf_model.meta'))  # Don't need this probably
 
     if imported_graph is not None:
         print("Loading saved model..")
-        imported_graph.restore(sess, os.path.abspath("mtf_model"))
+        imported_graph.restore(sess, os.path.abspath("mtf_model"))  # Or use the saver
     else:
         print("Initializing variables...")
         sess.run(init_op)  # Initialise the variables

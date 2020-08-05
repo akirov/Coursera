@@ -137,11 +137,11 @@ tstart = timer()
 with tf.Session() as sess:
     imported_graph = None
     if os.path.isfile(os.path.abspath("cnn_model.meta")):
-        imported_graph = tf.train.import_meta_graph(os.path.abspath('cnn_model.meta'))
+        imported_graph = tf.train.import_meta_graph(os.path.abspath('cnn_model.meta'))  # Don't need this probably
 
     if imported_graph is not None:
         print("Loading saved model..")
-        imported_graph.restore(sess, os.path.abspath("cnn_model"))
+        imported_graph.restore(sess, os.path.abspath("cnn_model"))  # Or use the saver
         smod = 0.0
     else:
         print("Initializing variables...")
@@ -170,7 +170,7 @@ with tf.Session() as sess:
             losses.append(avg_cost)
             # Save the model every 10 epochs
             if epoch % 10 == 0 : saver.save(sess, os.path.abspath("cnn_model"))
-            if avg_cost < 0.00001: break
+            if avg_cost < 0.0001: break
 
         test_acc = sess.run(accuracy, feed_dict={X: mnist.test.images, Y_: mnist.test.labels, keep_prob: 1.0})
         print("Training finished! Test accuracy = ", test_acc)
